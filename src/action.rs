@@ -188,7 +188,7 @@ pub fn show_context_menu(menu: Menu, pos: Option<Point>) {
 ///
 /// Platform support:
 /// - Windows: No
-/// - macOS: Yes (not currently implemented)
+/// - macOS: Yes
 /// - Linux: No
 pub fn set_window_menu(menu: Menu) {
     add_update_message(UpdateMessage::WindowMenu { menu });

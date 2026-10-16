@@ -19,6 +19,11 @@ use winit::{
 
 #[cfg(any(target_os = "linux", target_os = "freebsd"))]
 use crate::reactive::SignalWith;
+
+#[cfg(target_os = "macos")]
+thread_local! {
+    static MACOS_WINDOW_MENU: RefCell<Option<muda::Menu>> = const { RefCell::new(None) };
+}
 #[cfg(any(target_os = "linux", target_os = "freebsd"))]
 use crate::unit::UnitExt;
 #[cfg(any(target_os = "linux", target_os = "freebsd"))]
@@ -1035,10 +1040,16 @@ impl WindowHandle {
                         #[cfg(any(target_os = "linux", target_os = "freebsd"))]
                         self.show_context_menu(menu, pos);
                     }
-                    UpdateMessage::WindowMenu { menu } => {
-                        // let platform_menu = menu.platform_menu();
-                        self.update_window_menu(menu);
-                        // self.handle.set_menu(platform_menu);
+                    UpdateMessage::WindowMenu { mut menu } => {
+                        cx.app_state.update_window_menu(&mut menu);
+                        #[cfg(target_os = "macos")]
+                        {
+                            let platform_menu = menu.platform_menu();
+                            platform_menu.init_for_nsapp();
+                            // muda unregisters item bookkeeping on drop, so keep the
+                            // menu installed in NSApp alive until it is replaced.
+                            MACOS_WINDOW_MENU.with(|m| *m.borrow_mut() = Some(platform_menu));
+                        }
                     }
                     UpdateMessage::SetWindowTitle { title } => {
                         if let Some(window) = self.window.as_ref() {
@@ -1145,25 +1156,6 @@ impl WindowHandle {
                 .map(|m| !m.is_empty())
                 .unwrap_or(false)
         })
-    }
-
-    fn update_window_menu(&mut self, _menu: Menu) {
-        // if let Some(action) = menu.item.action.take() {
-        //     self.window_menu.insert(menu.item.id as u32, action);
-        // }
-        // for child in menu.children {
-        //     match child {
-        //         crate::menu::MenuEntry::Separator => {}
-        //         crate::menu::MenuEntry::Item(mut item) => {
-        //             if let Some(action) = item.action.take() {
-        //                 self.window_menu.insert(item.id as u32, action);
-        //             }
-        //         }
-        //         crate::menu::MenuEntry::SubMenu(m) => {
-        //             self.update_window_menu(m);
-        //         }
-        //     }
-        // }
     }
 
     fn set_cursor(&mut self) {

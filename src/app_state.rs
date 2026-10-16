@@ -299,22 +299,12 @@ impl AppState {
     }
 
     pub(crate) fn update_context_menu(&mut self, menu: &mut Menu) {
-        if let Some(action) = menu.item.action.take() {
-            self.context_menu.insert(menu.item.id.clone(), action);
-        }
-        for child in menu.children.iter_mut() {
-            match child {
-                crate::menu::MenuEntry::Separator => {}
-                crate::menu::MenuEntry::Item(item) => {
-                    if let Some(action) = item.action.take() {
-                        self.context_menu.insert(item.id.clone(), action);
-                    }
-                }
-                crate::menu::MenuEntry::SubMenu(m) => {
-                    self.update_context_menu(m);
-                }
-            }
-        }
+        collect_menu_actions(menu, &mut self.context_menu);
+    }
+
+    pub(crate) fn update_window_menu(&mut self, menu: &mut Menu) {
+        self.window_menu.clear();
+        collect_menu_actions(menu, &mut self.window_menu);
     }
 
     pub(crate) fn focus_changed(&mut self, old: Option<ViewId>, new: Option<ViewId>) {
@@ -337,6 +327,23 @@ impl AppState {
                 old_id.request_style_recursive();
             }
             old_id.apply_event(&EventListener::FocusLost, &Event::FocusLost);
+        }
+    }
+}
+
+fn collect_menu_actions(menu: &mut Menu, actions: &mut HashMap<String, Box<dyn Fn()>>) {
+    if let Some(action) = menu.item.action.take() {
+        actions.insert(menu.item.id.clone(), action);
+    }
+    for child in menu.children.iter_mut() {
+        match child {
+            crate::menu::MenuEntry::Separator => {}
+            crate::menu::MenuEntry::Item(item) => {
+                if let Some(action) = item.action.take() {
+                    actions.insert(item.id.clone(), action);
+                }
+            }
+            crate::menu::MenuEntry::SubMenu(m) => collect_menu_actions(m, actions),
         }
     }
 }
